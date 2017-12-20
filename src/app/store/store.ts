@@ -1,27 +1,32 @@
 import { routerMiddleware } from 'react-router-redux';
 import { History } from 'history';
-import { createStore, applyMiddleware, compose } from 'redux';
+import { createStore, applyMiddleware, compose, Middleware } from 'redux';
+import { wrapRootEpic } from 'react-redux-epic';
 import { combineEpics, createEpicMiddleware } from 'redux-observable';
 import { StoreState } from './types';
-import { searchEpic } from './features/search/epic';
 import { reducer } from './reducer';
+import { analyticsEpic } from 'store/features/analytics/epic';
+import { updateUrlEpic } from 'store/features/search/updateUrlEpic';
+import { dataResolverEpic } from 'store/features/data/epic';
+import { nullResult } from 'helpers/asyncResults';
 
 const defaultInitialState: StoreState = {
-  searchResults: {
-    hasError: false,
-    isInProgress: false,
-    value: null,
-  },
   routing: {
     location: null,
   },
   statusCode: 200,
-  lastSearchMatch: null,
+  isSearchFocused: false,
+  resolvedData: {
+    searchResults: {
+      ...nullResult,
+      resolvedKey: null,
+    },
+    notablePersonQuery: {
+      ...nullResult,
+      resolvedKey: null,
+    },
+  },
 };
-
-const rootEpic = combineEpics(searchEpic);
-
-const epicMiddleware = createEpicMiddleware(rootEpic);
 
 declare const global: NodeJS.Global & {
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__: typeof compose | undefined;
@@ -40,23 +45,31 @@ declare const module: {
 export function createStoreWithInitialState(
   history: History,
   initialState: StoreState = defaultInitialState,
+  additionalMiddleware: Middleware[] = [],
 ) {
+  const rootEpic = combineEpics(analyticsEpic, updateUrlEpic, dataResolverEpic);
+  const wrappedRootEpic = wrapRootEpic(rootEpic);
+  const epicMiddleware = createEpicMiddleware(wrappedRootEpic);
   const store = createStore<StoreState>(
     reducer,
     initialState,
     composeEnhancers(
-      applyMiddleware(epicMiddleware, routerMiddleware(history)),
+      applyMiddleware(
+        epicMiddleware,
+        routerMiddleware(history),
+        ...additionalMiddleware,
+      ),
     ),
   );
 
   if (module.hot) {
     // Enable Webpack hot module replacement for reducers
-    module.hot.accept('store/reducer', () => {
+    module.hot.accept('./reducer', () => {
       // tslint:disable-next-line no-require-imports
-      const nextRootReducer = require('store/reducer').reducer;
+      const nextRootReducer = require('./reducer').reducer;
       store.replaceReducer(nextRootReducer);
     });
   }
 
-  return store;
+  return { store, wrappedRootEpic };
 }

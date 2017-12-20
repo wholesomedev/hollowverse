@@ -5,23 +5,46 @@ import {
 } from 'react-router-redux';
 import { AsyncResult } from 'helpers/asyncResults';
 import { AlgoliaResponse } from 'algoliasearch';
+import { NotablePersonQuery } from 'api/types';
 
 /** A map of all app actions to their corresponding payloads */
 export type TypeToPayload = {
   REQUEST_SEARCH_RESULTS: {
     query: string;
   };
-  SET_SEARCH_RESULTS: AsyncResult<AlgoliaResponse | null>;
-  SET_LAST_SEARCH_MATCH: string;
+  SET_SEARCH_IS_FOCUSED: boolean;
   SET_STATUS_CODE: number;
+  REQUEST_DATA: {
+    allowOptimisticUpdates: boolean;
+    key: ResolvedDataKey;
+    resolvedKey: string;
+    resolve(): Promise<ResolvedData[ResolvedDataKey]>;
+  };
+  SET_RESOLVED_DATA: {
+    key: ResolvedDataKey;
+    data: AsyncResult<ResolvedData[ResolvedDataKey]> & {
+      resolvedKey: string;
+    };
+  };
   '@@router/LOCATION_CHANGE': LocationChangeAction['payload'];
   '@@router/CALL_HISTORY_METHOD': RouterAction['payload'];
 };
 
+export type ResolvedData = {
+  notablePersonQuery: NotablePersonQuery | null;
+  searchResults: AlgoliaResponse | null;
+};
+
+export type ResolvedDataKey = keyof ResolvedData;
+
 export type AppState = {
   statusCode: number;
-  searchResults: AsyncResult<AlgoliaResponse | null>;
-  lastSearchMatch: string | null;
+  isSearchFocused: boolean;
+  resolvedData: {
+    [K in keyof ResolvedData]: AsyncResult<ResolvedData[K] | null> & {
+      resolvedKey: string | null;
+    }
+  };
 };
 
 /**

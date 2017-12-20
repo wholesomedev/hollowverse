@@ -8,20 +8,19 @@ import { FbComments } from 'components/FbComments/FbComments';
 import { MessageWithIcon } from 'components/MessageWithIcon/MessageWithIcon';
 import { SvgIcon } from 'components/SvgIcon/SvgIcon';
 import { OptionalIntersectionObserver } from 'components/OptionalIntersectionObserver/OptionalIntersectionObserver';
-import { withRouter, RouteComponentProps } from 'react-router';
 
 import warningIcon from 'icons/warning.svg';
 
 import * as classes from './NotablePerson.module.scss';
 import { Card } from 'components/Card/Card';
 import { EditorialSummary } from 'components/EditorialSummary/EditorialSummary';
-import { ResolvableComponent } from 'hocs/ResolvableComponent/ResolvableComponent';
 import { Status } from 'components/Status/Status';
 import {
   isErrorResult,
   isPendingResult,
   AsyncResult,
 } from 'helpers/asyncResults';
+import { ResolvableComponent } from 'hocs/ResolvableComponent/ResolvableComponent';
 
 const warningIconComponent = <SvgIcon {...warningIcon} size={100} />;
 
@@ -33,6 +32,7 @@ const query = gql`
   query NotablePerson($slug: String!) {
     notablePerson(slug: $slug) {
       name
+      slug
       photoUrl
       summary
       commentsUrl
@@ -50,96 +50,103 @@ const query = gql`
   }
 `;
 
-type Props = RouteComponentProps<{ slug: string }>;
+export type Props = { slug: string };
 
-class Page extends React.PureComponent<Props> {
+class Page extends React.Component<Props> {
   load = async () => {
-    const { match: { params: { slug } } } = this.props;
+    const { slug } = this.props;
 
     return client.request<NotablePersonQuery>(query, { slug });
   };
 
   render() {
     return (
-      <ResolvableComponent load={this.load}>
-        {({ result }: { result: AsyncResult<NotablePersonQuery> }) => {
-          if (isPendingResult(result)) {
-            return <div>Loading NP page...</div>;
-          }
+      <div key={this.props.slug}>
+        <ResolvableComponent
+          updateKey={this.props.slug}
+          dataKey="notablePersonQuery"
+          resolve={this.load}
+        >
+          {({ result }: { result: AsyncResult<NotablePersonQuery> }) => {
+            if (isPendingResult(result)) {
+              return <div>Loading NP page...</div>;
+            }
 
-          if (isErrorResult(result) || !result.value) {
-            return (
-              <Status code={500}>
+            if (isErrorResult(result) || !result.value) {
+              return (
                 <MessageWithIcon
                   caption="Are you connected to the internet?"
                   description="Please check your connection and try again"
                   actionText="Retry"
                   icon={warningIconComponent}
                   onActionClick={reload}
-                />
-              </Status>
-            );
-          }
+                >
+                  <Status code={500} />
+                </MessageWithIcon>
+              );
+            }
 
-          const { notablePerson } = result.value;
+            const { notablePerson } = result.value;
 
-          if (!notablePerson) {
-            return (
-              <Status code={404}>
+            if (!notablePerson) {
+              return (
                 <MessageWithIcon
                   caption="Not Found"
                   icon={warningIconComponent}
-                />
-              </Status>
+                >
+                  <Status code={404} />
+                </MessageWithIcon>
+              );
+            }
+
+            const {
+              name,
+              photoUrl,
+              summary,
+              commentsUrl,
+              editorialSummary,
+            } = notablePerson;
+
+            return (
+              <div className={classes.root}>
+                <Status code={200} />
+                <article className={classes.article}>
+                  <PersonDetails
+                    name={name}
+                    photoUrl={photoUrl}
+                    summary={summary}
+                  />
+                  {editorialSummary ? (
+                    <Card
+                      className={cc([classes.card, classes.editorialSummary])}
+                    >
+                      <EditorialSummary {...editorialSummary} />
+                    </Card>
+                  ) : null}
+                </article>
+                <OptionalIntersectionObserver
+                  rootMargin="0% 0% 25% 0%"
+                  triggerOnce
+                >
+                  {inView => {
+                    if (inView) {
+                      return (
+                        <Card className={cc([classes.card, classes.comments])}>
+                          <FbComments url={commentsUrl} />
+                        </Card>
+                      );
+                    } else {
+                      return null;
+                    }
+                  }}
+                </OptionalIntersectionObserver>
+              </div>
             );
-          }
-
-          const {
-            name,
-            photoUrl,
-            summary,
-            commentsUrl,
-            editorialSummary,
-          } = notablePerson;
-
-          return (
-            <div className={classes.root}>
-              <article className={classes.article}>
-                <PersonDetails
-                  name={name}
-                  photoUrl={photoUrl}
-                  summary={summary}
-                />
-                {editorialSummary ? (
-                  <Card
-                    className={cc([classes.card, classes.editorialSummary])}
-                  >
-                    <EditorialSummary {...editorialSummary} />
-                  </Card>
-                ) : null}
-              </article>
-              <OptionalIntersectionObserver
-                rootMargin="0% 0% 25% 0%"
-                triggerOnce
-              >
-                {inView => {
-                  if (inView) {
-                    return (
-                      <Card className={cc([classes.card, classes.comments])}>
-                        <FbComments url={commentsUrl} />
-                      </Card>
-                    );
-                  } else {
-                    return null;
-                  }
-                }}
-              </OptionalIntersectionObserver>
-            </div>
-          );
-        }}
-      </ResolvableComponent>
+          }}
+        </ResolvableComponent>
+      </div>
     );
   }
 }
 
-export const NotablePerson = withRouter(Page);
+export const NotablePerson = Page;

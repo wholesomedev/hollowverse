@@ -2,15 +2,13 @@ import { routerReducer, RouterState } from 'react-router-redux';
 import { combineReducers, Reducer as GenericReducer } from 'redux';
 import { StoreState, ReducerMap } from './types';
 import { statusCodeReducer } from 'store/features/status/reducer';
-import {
-  searchResultsReducer,
-  lastSearchMatchReducer,
-} from 'store/features/search/reducer';
+import { isSearchFocusedReducer } from 'store/features/search/reducer';
+import { resolvedDataReducer } from 'store/features/data/reducer';
 
 const appReducers: ReducerMap = {
   statusCode: statusCodeReducer,
-  searchResults: searchResultsReducer,
-  lastSearchMatch: lastSearchMatchReducer,
+  isSearchFocused: isSearchFocusedReducer,
+  resolvedData: resolvedDataReducer,
 };
 
 /**
