@@ -1,5 +1,4 @@
 import * as React from 'react';
-import cc from 'classcat';
 
 import * as classes from './SearchView.module.scss';
 
@@ -13,11 +12,12 @@ type Props = {
   inputValue?: string;
   isFocused?: boolean;
   isSearchInProgress: boolean;
+  goToSearch(): any;
   setSearchIsFocused(isFocused: boolean): any;
   requestSearchResults({ query }: { query: string }): any;
 };
 
-export const SearchView = class extends React.PureComponent<Props> {
+export class SearchView extends React.PureComponent<Props> {
   searchInput: HTMLInputElement | null = null;
 
   setSearchInput = (node: HTMLInputElement | null) => {
@@ -28,16 +28,23 @@ export const SearchView = class extends React.PureComponent<Props> {
     this.props.requestSearchResults({ query: e.target.value });
   };
 
-  handleSearchInputFocus = () => {
-    this.props.setSearchIsFocused(true);
-  };
+  componentWillReceiveProps(nextProps: Props) {
+    if (nextProps.isFocused && this.searchInput) {
+      this.searchInput.focus();
+    }
+  }
 
   handleSearchFormBlur = () => {
     this.props.setSearchIsFocused(false);
   };
 
   render() {
-    const { inputValue, isFocused, isSearchInProgress } = this.props;
+    const {
+      inputValue,
+      isFocused,
+      isSearchInProgress,
+      goToSearch,
+    } = this.props;
 
     return (
       <form
@@ -50,29 +57,26 @@ export const SearchView = class extends React.PureComponent<Props> {
           type="search"
           ref={this.setSearchInput}
           className={classes.searchInput}
-          onFocus={this.handleSearchInputFocus}
           required
           name="query"
           value={inputValue}
+          onFocus={goToSearch}
           placeholder="Search for notable people..."
           autoFocus={!inputValue && isFocused}
           onChange={this.handleChange}
         />
-        {
-          <NavBarButton
-            disabled={isSearchInProgress}
-            className={cc([classes.button, classes.hasSpinner])}
-            type="submit"
-          >
-            {isSearchInProgress ? (
-              <LoadingSpinner size={20} />
-            ) : (
-              <SvgIcon size={20} {...searchIcon} />
-            )}
-            <span className="sr-only">Search</span>
-          </NavBarButton>
-        }
+        <NavBarButton
+          className={classes.button}
+          type={isSearchInProgress ? 'button' : 'submit'}
+        >
+          {isSearchInProgress ? (
+            <LoadingSpinner className={classes.button} size={20} />
+          ) : (
+            <SvgIcon size={20} {...searchIcon} />
+          )}
+          <span className="sr-only">Search</span>
+        </NavBarButton>
       </form>
     );
   }
-};
+}
