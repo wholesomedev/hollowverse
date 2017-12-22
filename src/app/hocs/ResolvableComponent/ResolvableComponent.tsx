@@ -8,8 +8,13 @@ import { requestData } from 'store/features/data/actions';
 
 type OwnProps<Key extends ResolvedDataKey = ResolvedDataKey> = {
   dataKey: Key;
-  updateKey: string;
+  /**
+   * A unique identifier for the resolve request, if this changes,
+   * `resolve()` will be called again
+   */
+  requestId: string | null;
   allowOptimisticUpdates?: boolean;
+
   clientOnly?: boolean;
   resolve(): Promise<ResolvedData[Key]>;
   children({
@@ -21,7 +26,7 @@ type OwnProps<Key extends ResolvedDataKey = ResolvedDataKey> = {
 
 type StateProps<Key extends ResolvedDataKey = ResolvedDataKey> = {
   result: AsyncResult<ResolvedData[Key] | null> & {
-    resolvedKey: string | null;
+    requestId: string | null;
   };
 };
 
@@ -38,25 +43,29 @@ class Wrapper extends React.Component<Props> {
     const {
       dataKey,
       resolve,
-      updateKey,
+      requestId,
       allowOptimisticUpdates = false,
     } = this.props;
     this.props.requestData({
       key: dataKey,
-      resolvedKey: updateKey,
+      requestId,
       resolve,
       allowOptimisticUpdates,
     });
   }
 
   componentWillMount() {
-    if (this.props.result.resolvedKey !== this.props.updateKey) {
+    if (this.props.clientOnly && __IS_SERVER__) {
+      return;
+    }
+
+    if (this.props.result.requestId !== this.props.requestId) {
       this.resolve();
     }
   }
 
   componentWillReceiveProps(nextProps: Props) {
-    if (nextProps.updateKey !== this.props.updateKey) {
+    if (nextProps.requestId !== this.props.requestId) {
       this.resolve();
     }
   }
